@@ -145,7 +145,12 @@ abstract class AbstractPart
             $levelId = $xmlReader->getAttribute('w:val', $domNode, 'w:pPr/w:numPr/w:ilvl');
             $nodes = $xmlReader->getElements('w:r', $domNode);
             foreach ($nodes as $node) {
+            	// get all text
                 $textContent .= $xmlReader->getValue('w:t', $node);
+
+	            // try to read the run (images!)
+	            $this->readRun($xmlReader, $node, $parent, $docPart, $paragraphStyle);
+
             }
             $parent->addListItem($textContent, $levelId, null, "PHPWordList{$numId}", $paragraphStyle);
 
@@ -226,15 +231,27 @@ abstract class AbstractPart
                 }
 
             // Object
-            } elseif ($xmlReader->elementExists('w:object', $domNode)) {
-                $rId = $xmlReader->getAttribute('r:id', $domNode, 'w:object/o:OLEObject');
-                // $rIdIcon = $xmlReader->getAttribute('r:id', $domNode, 'w:object/v:shape/v:imagedata');
-                $target = $this->getMediaTarget($docPart, $rId);
-                if (!is_null($target)) {
-                    $textContent = "<Object: {$target}>";
-                    $parent->addText($textContent, $fontStyle, $paragraphStyle);
-                }
+            } elseif ($xmlReader->elementExists('w:object', $domNode))
+            {
+	            $rId = $xmlReader->getAttribute('r:id', $domNode, 'w:object/o:OLEObject');
+	            // $rIdIcon = $xmlReader->getAttribute('r:id', $domNode, 'w:object/v:shape/v:imagedata');
+	            $target = $this->getMediaTarget($docPart, $rId);
+	            if (!is_null($target))
+	            {
+		            $textContent = "<Object: {$target}>";
+		            $parent->addText($textContent, $fontStyle, $paragraphStyle);
+	            }
+			// Drawing
+            } elseif($xmlReader->elementExists('w:drawing', $domNode)) {
+            	//$rId = $xmlReader->getAttribute('r:embed', $domNode, 'w:drawing/wp:inline/a:graphic/a:graphicData/pic:pic/pic:blipFill/a:blip');
+            	//$rId = $xmlReader->getAttribute('distT', $domNode, "w:drawing/*[local-name() = 'inline']");
+            	$rId = $xmlReader->getAttribute('r:embed', $domNode, "//*[local-name() = 'blip']");
 
+            	$target = $this->getMediaTarget($docPart, $rId);
+            	if (!is_null($target)) {
+            		$imageSource = "zip://{$this->docFile}#{$target}";
+            		$parent->addImage($imageSource);
+	            }
             // TextRun
             } else {
                 $textContent = $xmlReader->getValue('w:t', $domNode);
